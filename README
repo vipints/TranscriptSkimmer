@@ -1,0 +1,9 @@
+TranscriptSkimmer
+----------------------------
+
+TranscriptSkimmer is a reference-guided assembler for RNASeq experiments. 
+It simultaneously assembles transcripts from reads without using a reference 
+annotation.  The software expects as input genome sequence in FASTA file and 
+RNASeq read alignments in BAM format - binary form of SAM format.
+(http://samtools.sourceforge.net)
+
