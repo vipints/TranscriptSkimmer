@@ -12,19 +12,19 @@ import shutil
 import subprocess
 import collections
 from Bio import SeqIO 
-from gfftools import GFFParser, helper 
+from utils import GFFParser, helper 
 
 from optparse import OptionParser
 
 def main():
     """
-    main inputs to trsk 
+    main inputs to TranscriptSkimmer
     """
 
     parser = OptionParser()
 
     #TODO options to the trkm program 
-    parser.add_option( "-g", "--genome_sequence", dest="genome_sequence", action="store", help="Genome sequence in fasta format")
+    parser.add_option( "-g", "--fasta_file", dest="fasta_file", action="store", help="Genome sequence file in fasta format")
     parser.add_option( "-b", "--bam_file", dest="bam_file", action="store", help="BAM file for storing sequence read alignment")
     parser.add_option( "-D", "--result_dir", dest="result_dir", help="Result directory; storing output files.")
     parser.add_option( "-A", "--gff_file", dest="gff_file", action="store", type="str", help="Assembled isoforms output file; formate is GFF", default="trsk_genes.gff")
@@ -57,14 +57,14 @@ def main():
     ( options, args ) = parser.parse_args()
     
     #TODO check condition for input variables, specifically we need genome, bam file 
-    if not ( options.genome_sequence and options.bam_file and \
+    if not ( options.fasta_file and options.bam_file and \
         options.result_dir ):
         parser.print_help()
         sys.exit(-1)
 
     #TODO genome preparation step 
     gio_path_temp = os.path.join(options.result_dir, "temp_gio")
-    make_gio(options.genome_sequence, gio_path_temp)
+    make_gio(options.fasta_file, gio_path_temp)
 
     #options="-maxel %d -ss -reglen 0.66 -maxic %d -minic 20 -maxin %d -mm 2 -exm 3 -indt 150 -exd 20 -tf 0.5 -inscf 3 -excut 3 -toff 100 -el 15" % (max_exon_length, max_intergenic_region, max_intron_length)
     #TODO run the program 
@@ -102,138 +102,22 @@ def main():
     #print advance_options
     gtf_db = run_trsk(gio_path_temp, options.bam_file, options.result_dir, advance_options)
     print gtf_db 
-
+    
+    """
     #TODO clean the results 
     print "starting a check through the predicted gene models"
-    fine_transcripts = validate_pred_gene_models(gtf_db, options.genome_sequence, options.gff_file)
+    fine_transcripts = validate_pred_gene_models(gtf_db, options.fasta_file, options.gff_file)
     print "filtered transcripts are stored at %s" % fine_transcripts
     
     print "cleaning..."
-    shutil.rmtree(gio_path_temp)
     os.unlink(gtf_db)
 
     # TODO clean the region file based on the new gff file 
     print "done"
-
-
-def validate_pred_gene_models(gff_name, fas_file, out_fname):
-    """
-    check the sequence consistency/quality of predicted fragment
-
-    @args gff_name: result file gff format from TranscriptSkimmer
-    @type gff_name: str
-    @args fas_file: genome sequence in fasta format
-    @type fas_file: str 
-    @args out_fname: filtered gene models in gff format 
-    @type out_fname: str 
     """
 
-    ## getting the genome annotation from GFF file 
-    gff_content = GFFParser.Parse(gff_name)
-    
-    ## getting the spliced transcripts from the predicted gene list 
-    transcripts_region = collections.defaultdict(list)
-    for gene_recd in gff_content:
-        spliced_transcript = collections.defaultdict(list)
+    shutil.rmtree(gio_path_temp)
 
-        for idx, sub_rec in enumerate(gene_recd['transcripts']):
-            exon_cnt = len(gene_recd['exons'][idx])
-
-            ## skipping the single-exon transcripts 
-            if exon_cnt > 1: 
-                for idk, ex in enumerate(gene_recd['exons'][idx]):
-                    if idk == 0:
-                        ex[0] = None 
-                    if exon_cnt-1 == idk:
-                        ex[1] = None
-
-                    spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])].append(ex)
-
-        transcripts_region[gene_recd['chr']].append(spliced_transcript)
-
-    print "check for the splice site consensus for predicted transcripts"
-    ## check for splice site consensus sequence of predicted transcripts 
-    get_gene_models = collections.defaultdict()
-    for fas_rec in SeqIO.parse(fas_file, "fasta"):
-        if fas_rec.id in transcripts_region:
-            for details in transcripts_region[fas_rec.id]:
-                for genes, regions in details.items():
-
-                    acc_cons_cnt = 0 
-                    don_cons_cnt = 0 
-
-                    for region in regions:
-                        if genes[-1] == '+':
-                            ## acceptor splice site 
-                            if not numpy.isnan(region[0]):
-                                acc_seq = fas_rec.seq[int(region[0])-3:int(region[0])-1]
-                                if str(acc_seq).upper() == "AG":
-                                    acc_cons_cnt += 1 
-
-                            if not numpy.isnan(region[1]):
-                                don_seq = fas_rec.seq[int(region[1]):int(region[1])+2]
-                                if str(don_seq).upper() == "GT":
-                                    don_cons_cnt +=1 
-
-                        elif genes[-1] == '-':
-                            ## donor splice site 
-                            if not numpy.isnan(region[0]):
-                                don_seq = fas_rec.seq[int(region[0])-3:int(region[0])-1]
-                                don_seq = don_seq.reverse_complement()
-                                if str(don_seq).upper() == "GT":
-                                    don_cons_cnt +=1 
-                            
-                            if not numpy.isnan(region[1]):
-                                acc_seq = fas_rec.seq[int(region[1]):int(region[1])+2]
-                                acc_seq = acc_seq.reverse_complement()
-                                if str(acc_seq).upper() == "AG":
-                                    acc_cons_cnt += 1 
-                    ## check for half of the consensus sites 
-                    if acc_cons_cnt > (len(regions)/2) and don_cons_cnt > (len(regions)/2):
-                        get_gene_models[(fas_rec.id, genes[0], genes[1], genes[2])] = 1   
-    
-    gff_cont = GFFParser.Parse(gff_name)
-
-    ## filter out the best gene models based on the consensus 
-    print "writing the fine tuned transctipts to the the file: %s " % out_fname 
-    out_fh = open(out_fname, "w")
-    for recd in gff_cont:
-        trans_indices = [] 
-
-        for idx, sub_rec in enumerate(recd['transcripts']):
-            if (recd['chr'], recd['name'], sub_rec[0], recd['strand']) in get_gene_models:
-                trans_indices.append(idx)
-
-        if trans_indices:
-            chr_name = recd['chr']
-            strand = recd['strand']
-            start = recd['start']
-            stop = recd['stop']
-            source = recd['source']
-            ID = recd['name']
-            Name = recd['gene_info']['Name']
-            Name = ID if Name != None else Name  
-            out_fh.write('%s\t%s\tgene\t%d\t%d\t.\t%s\t.\tID=%s;Name=%s\n' % (chr_name, source, start, stop, strand, ID, Name))
-                
-            for idz, tid in enumerate(recd['transcripts']):
-                if idz in trans_indices:
-
-                    t_start = recd['exons'][idz][0][0]
-                    t_stop = recd['exons'][idz][-1][-1]
-                    t_type = recd['transcript_type'][idz] 
-
-                    out_fh.write('%s\t%s\t%s\t%d\t%d\t.\t%s\t.\tID=%s;Parent=%s\n' % (chr_name, source, t_type, t_start, t_stop, strand, tid[0], ID))
-                    
-                    for ex_cod in recd['utr5_exons'][idz]:
-                        out_fh.write('%s\t%s\tfive_prime_UTR\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0])) 
-                    for ex_cod in recd['cds_exons'][idz]:
-                        out_fh.write('%s\t%s\tCDS\t%d\t%d\t.\t%s\t%d\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, ex_cod[2], tid[0])) 
-                    for ex_cod in recd['utr3_exons'][idz]:
-                        out_fh.write('%s\t%s\tthree_prime_UTR\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0]))
-                    for ex_cod in recd['exons'][idz]:
-                        out_fh.write('%s\t%s\texon\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0])) 
-    out_fh.close()
-    return out_fname
 
 
 def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="_tmp_trsk_genes.gff", tmp_reg_file="_tmp_trsk_regions.bed"):
