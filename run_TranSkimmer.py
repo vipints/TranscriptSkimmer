@@ -105,11 +105,6 @@ def main():
     
     """
     #TODO clean the results 
-    print "starting a check through the predicted gene models"
-    fine_transcripts = validate_pred_gene_models(gtf_db, options.fasta_file, options.gff_file)
-    print "filtered transcripts are stored at %s" % fine_transcripts
-    
-    print "cleaning..."
     os.unlink(gtf_db)
 
     # TODO clean the region file based on the new gff file 
@@ -119,14 +114,11 @@ def main():
     shutil.rmtree(gio_path_temp)
 
 
-
-def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="_tmp_trsk_genes.gff", tmp_reg_file="_tmp_trsk_regions.bed"):
+def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes.gff", tmp_reg_file="tmp_trsk_regions.bed"):
     """
     run TransriptSkimmer for provided genome
 
     """
-
-    print bam_file
 
     ## indexing the in bam file 
     if not os.path.exists(bam_file + ".bai"):
@@ -152,14 +144,20 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="_tmp_trsk_gene
     print "bam file using is %s" % bam_file
 
     gio_file = "%s/genome.config"  % gio_file 
-
-    os.chdir(res_path) 
-
+    if not os.path.isfile("%s" % gio_file):
+        print "error: failed to fetch genome index object file from %s" % gio_file
+        sys.exit(-1)
+        
     cli_trsk = "infer_genes -gio %s -bam %s -gff %s -reg %s %s" % (gio_file, bam_file, tmp_gff_file, tmp_reg_file, options)  
     sys.stdout.write('\trun TranscriptSkimmer as: %s \n' % cli_trsk)
-
-    process = subprocess.Popen(cli_trsk, shell=True) 
-    process.wait()
+    
+    try:
+        os.chdir(res_path) 
+        process = subprocess.Popen(cli_trsk, shell=True) 
+        process.wait()
+    except Exception, e:
+        print 'Error running TranscriptSkimmer.\n%s' %  str( e )
+        sys.exit(-1)
 
     return "%s/%s" % (res_path, tmp_gff_file)
 
