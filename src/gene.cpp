@@ -19,14 +19,12 @@ void Gene::find_orf(int min_len, float separation)
 	char* mRNA_seq; 
 	int len; 
 	get_mRNA_seq(&mRNA_seq, &len); 
-
 	//printf("strand: %c, len: %i \n%s\n", strand, len, mRNA_seq);
 
 	int tis = 0;
 	int stop = 0;
 	int second_best = 0;
 	GeneTools::find_max_orf(mRNA_seq, len, &tis, &stop, &second_best);
-
 	//printf("tis:%i, stop:%i, len:%i second:%i\n", tis, stop, stop-tis, second_best);
 
 	int orflen = stop-tis;
@@ -39,7 +37,6 @@ void Gene::find_orf(int min_len, float separation)
 	//printf("tis_cons: %s\n", tis_cons.c_str()); 
 	string stop_cons(&mRNA_seq[stop], 3);
 	//printf("stop_cons: %s\n", stop_cons.c_str()); 
-
 
 	int dna_tis;
 	int dna_stop;
@@ -63,7 +60,6 @@ void Gene::find_orf(int min_len, float separation)
 	//printf("dna stop_cons: %s\n", dna_stop_cons.c_str()); 
 	if (dna_tis>-1 && dna_stop>-1)
 		split_exons(dna_tis, dna_stop);
-
 }
 void Gene::split_exons(int tis, int stop)
 {
@@ -113,7 +109,7 @@ void Gene::split_exons(int tis, int stop)
 			}
 			else
 			{
-				fprintf(stderr, "Error, this case is not captured\n");
+				fprintf(stderr, "Error, this case is not captured c+ strand\n");
 			}
 		}
 	}
@@ -158,7 +154,7 @@ void Gene::split_exons(int tis, int stop)
 			}
 			else
 			{
-				fprintf(stderr, "Error, this case is not captured c-strand\n");
+				fprintf(stderr, "Error, this case is not captured c- strand\n");
 			}
 		}
 	}

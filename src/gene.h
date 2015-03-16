@@ -142,5 +142,4 @@ class Gene: public Region
 
 
 };
-
 #endif
