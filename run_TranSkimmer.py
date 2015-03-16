@@ -88,10 +88,15 @@ def main():
         -reglen %.2f \
         -minic %d \
         -maxic %d \
-        " % ( options.max_intron_len, options.mm_filter, options.el_filter, options.max_exon_len, \
-            options.min_exon_len, options.exon_mean, options.exon_term_thresh, options.exon_drop, options.exon_cut, \
-            options.intron_cut, options.intron_conf, options.intron_dist, options.intron_seed_conf, \
-            options.term_filter, options.min_orf_len, options.min_orf_sep, options.term_offset, options.region_rel_length, \
+        " % ( options.max_intron_len, options.mm_filter, \
+            options.el_filter, options.max_exon_len, \
+            options.min_exon_len, options.exon_mean, \
+            options.exon_term_thresh, options.exon_drop, \
+            options.exon_cut, options.intron_cut, \
+            options.intron_conf, options.intron_dist, \
+            options.intron_seed_conf, options.term_filter, \
+            options.min_orf_len, options.min_orf_sep, \
+            options.term_offset, options.region_rel_length, \
             options.min_intergenic_len, options.max_intergenic_len ) 
 
     if options.strand_specific in ['T', 't', 'True', 'true']:
