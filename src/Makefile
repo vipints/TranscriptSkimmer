@@ -2,7 +2,7 @@ CXX = g++ -O9 -g
 GENOME = genome
 NGS = ngs_tools
 NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp
-SAMDIR = /cbio/grlab/share/software/samtools/samtools-0.1.18_fPIC/
+SAMDIR = /share/software/samtools/samtools-0.1.18_fPIC/
 SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses
 
 all: infer_genes
