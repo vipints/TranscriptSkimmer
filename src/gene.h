@@ -9,7 +9,6 @@
 #include "genome.h"
 #include "region.h"
 #include "read.h"
-#include "splice_labels_from_RNA_seq.h"
 #include <utility>
 	using std::pair;
 #include <vector>

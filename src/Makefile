@@ -2,6 +2,7 @@ CXX = g++ -O9 -g
 GENOME = genome
 NGS = ngs_tools
 NGS_TOOLS = ${NGS}/get_reads_direct.cpp ${NGS}/read.cpp
+#TODO ask for the samtool dependency 
 SAMDIR = /share/software/samtools/samtools-0.1.18_fPIC/
 SAMINCL = -I${SAMDIR} -L${SAMDIR} -lbam -lz -lcurses
 
