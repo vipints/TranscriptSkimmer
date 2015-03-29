@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 """
 wrapper for transcriptskimmer  
+
+requirements:
+    biopython :- http://biopython.org 
+
 """
 
-from __future__ import division
+#from __future__ import division
 import os 
 import sys 
 import numpy 
@@ -14,45 +18,53 @@ import collections
 from Bio import SeqIO 
 from utils import GFFParser, helper 
 
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 
 def main():
     """
     main inputs to TranscriptSkimmer
     """
 
-    parser = OptionParser()
+    parser = OptionParser(usage='usage: %prog [options] arguments')
+
+    required = OptionGroup(parser, 'Required')
 
     #TODO options to the trkm program 
-    parser.add_option( "-g", "--fasta_file", dest="fasta_file", action="store", help="Genome sequence file in fasta format")
-    parser.add_option( "-b", "--bam_file", dest="bam_file", action="store", help="BAM file for storing sequence read alignment")
-    parser.add_option( "-D", "--result_dir", dest="result_dir", help="Result directory; storing output files.")
-    parser.add_option( "-A", "--gff_file", dest="gff_file", action="store", type="str", help="Assembled isoforms output file; formate is GFF", default="trsk_genes.gff")
-    parser.add_option( "-R", "--bed_file", dest="bed_file", action="store", type="str", help="Assembled isoforms region file; formate is BED", default="trsk_regions.bed")
-    parser.add_option( "-I", "--max_intron_len", dest="max_intron_len", action="store", type="int", help="max intron length", default=20000)
-    parser.add_option( "-M", "--mm_filter", dest="mm_filter", action="store", type="int", help="mm_filter", default=2)
-    parser.add_option( "-E", "--el_filter", dest="el_filter", action="store", type="int", help="el_filter", default=8)
-    parser.add_option( "-X", "--max_exon_len", dest="max_exon_len", action="store", type="int", help="max exon length", default=8000)
-    parser.add_option( "--min_exon_len", dest="min_exon_len", action="store", type="int", help="min exon length", default=10)
-    parser.add_option( "--exon_mean", dest="exon_mean", action="store", type="int", help="exon_mean", default=5)
-    parser.add_option( "--exon_term_thresh", dest="exon_term_thresh", action="store", type="int", help="exon_mean", default=3)
-    parser.add_option( "--exon_drop", dest="exon_drop", action="store", type="int", help="exon drop", default=5)
-    parser.add_option( "--exon_cut", dest="exon_cut", action="store", type="int", help="exon cut", default=3)
-    parser.add_option( "--intron_cut", dest="intron_cut", action="store", type="int", help="exon cut", default=3)
-    parser.add_option( "--intron_conf", dest="intron_conf", action="store", type="int", help="exon cut", default=1)
-    parser.add_option( "--intron_dist", dest="intron_dist", action="store", type="int", help="exon cut", default=0)
-    parser.add_option( "--intron_seed_conf", dest="intron_seed_conf", action="store", type="int", help="exon cut", default=3)
-    #parser.add_option( "--reject_retained_introns", dest="reject_retained_introns", action="store", type="str", help="exon cut", default=0)
-    parser.add_option( "--term_filter", dest="term_filter", action="store", type="float", help="term filter", default=2.0)
-    #parser.add_option( "--find_orf", dest="find_orf", action="store", type="str", help="find orf", default=1)
-    parser.add_option( "-O", "--min_orf_len", dest="min_orf_len", action="store", type="int", help="min orf length", default=300)
-    parser.add_option( "--min_orf_sep", dest="min_orf_sep", action="store", type="float", help="min orf sep", default=0.7)
-    parser.add_option( "--term_offset", dest="term_offset", action="store", type="int", help="term offset", default=100)
-    parser.add_option( "--region_rel_length", dest="region_rel_length", action="store", type="float", help="region_rel_length", default=0.25)
-    parser.add_option( "--min_intergenic_len", dest="min_intergenic_len", action="store", type="int", help="min_intergenic_len", default=50)
-    parser.add_option( "--max_intergenic_len", dest="max_intergenic_len", action="store", type="int", help="max_intergenic_len", default=20000)
-    #parser.add_option( "--intergenic_win", dest="intergenic_win", action="store", type="int", help="intergenic_win", default=100)
-    parser.add_option( "-s", "--strand_specific", dest="strand_specific", action="store", type="str", help="cDNA library preparation protocol - strand specific (T) or non strand specific (F) default: F", default="F")
+    required.add_option( "-g", "--fasta_file", dest="fasta_file", action="store", help="Genome sequence file in fasta format")
+    required.add_option( "-b", "--bam_file", dest="bam_file", action="store", help="BAM file for storing sequence read alignment")
+    required.add_option( "-D", "--result_dir", dest="result_dir", help="Result directory; storing output files.")
+
+    optional = OptionGroup(parser, 'Optional')
+
+    optional.add_option( "-A", "--gff_file", dest="gff_file", action="store", type="str", help="Assembled isoforms output file; formate is GFF", default="trsk_genes.gff")
+    optional.add_option( "-R", "--bed_file", dest="bed_file", action="store", type="str", help="Assembled isoforms region file; formate is BED", default="trsk_regions.bed")
+    optional.add_option( "-I", "--max_intron_len", dest="max_intron_len", action="store", type="int", help="max intron length", default=20000)
+    optional.add_option( "-M", "--mm_filter", dest="mm_filter", action="store", type="int", help="mm_filter", default=2)
+    optional.add_option( "-E", "--el_filter", dest="el_filter", action="store", type="int", help="el_filter", default=8)
+    optional.add_option( "-X", "--max_exon_len", dest="max_exon_len", action="store", type="int", help="max exon length", default=8000)
+    optional.add_option( "--min_exon_len", dest="min_exon_len", action="store", type="int", help="min exon length", default=10)
+    optional.add_option( "--exon_mean", dest="exon_mean", action="store", type="int", help="exon_mean", default=5)
+    optional.add_option( "--exon_term_thresh", dest="exon_term_thresh", action="store", type="int", help="exon_mean", default=3)
+    optional.add_option( "--exon_drop", dest="exon_drop", action="store", type="int", help="exon drop", default=5)
+    optional.add_option( "--exon_cut", dest="exon_cut", action="store", type="int", help="exon cut", default=3)
+    optional.add_option( "--intron_cut", dest="intron_cut", action="store", type="int", help="exon cut", default=3)
+    optional.add_option( "--intron_conf", dest="intron_conf", action="store", type="int", help="exon cut", default=1)
+    optional.add_option( "--intron_dist", dest="intron_dist", action="store", type="int", help="exon cut", default=0)
+    optional.add_option( "--intron_seed_conf", dest="intron_seed_conf", action="store", type="int", help="exon cut", default=3)
+    #optional.add_option( "--reject_retained_introns", dest="reject_retained_introns", action="store", type="str", help="exon cut", default=0)
+    optional.add_option( "--term_filter", dest="term_filter", action="store", type="float", help="term filter", default=2.0)
+    #optional.add_option( "--find_orf", dest="find_orf", action="store", type="str", help="find orf", default=1)
+    optional.add_option( "-O", "--min_orf_len", dest="min_orf_len", action="store", type="int", help="min orf length", default=300)
+    optional.add_option( "--min_orf_sep", dest="min_orf_sep", action="store", type="float", help="min orf sep", default=0.7)
+    optional.add_option( "--term_offset", dest="term_offset", action="store", type="int", help="term offset", default=100)
+    optional.add_option( "--region_rel_length", dest="region_rel_length", action="store", type="float", help="region_rel_length", default=0.25)
+    optional.add_option( "--min_intergenic_len", dest="min_intergenic_len", action="store", type="int", help="min_intergenic_len", default=50)
+    optional.add_option( "--max_intergenic_len", dest="max_intergenic_len", action="store", type="int", help="max_intergenic_len", default=20000)
+    #optional.add_option( "--intergenic_win", dest="intergenic_win", action="store", type="int", help="intergenic_win", default=100)
+    optional.add_option( "-s", "--strand_specific", dest="strand_specific", action="store", type="str", help="cDNA library preparation protocol - strand specific (T) or non strand specific (F) default: F", default="F")
+
+    parser.add_option_group(required)
+    parser.add_option_group(optional)
 
     ( options, args ) = parser.parse_args()
     
