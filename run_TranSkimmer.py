@@ -121,11 +121,13 @@ def main():
     print gtf_db 
     
     """
-    #TODO clean the results 
-    os.unlink(gtf_db)
+    #TODO clean the genome annotation based on the transcript model
 
-    # TODO clean the region file based on the new gff file 
-    print "done"
+    check the consistency of splice sites 
+
+    read coverage to the promoter directions
+
+    clean the region file based on the new gff file 
     """
 
     shutil.rmtree(gio_path_temp)
