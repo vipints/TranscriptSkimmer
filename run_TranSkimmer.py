@@ -7,7 +7,6 @@ requirements:
 
 """
 
-#from __future__ import division
 import os 
 import sys 
 import numpy 
@@ -25,11 +24,11 @@ def main():
     main inputs to TranscriptSkimmer
     """
 
+    #TODO options to the trkm program 
     parser = OptionParser(usage='usage: %prog [options] arguments')
 
     required = OptionGroup(parser, 'Required')
 
-    #TODO options to the trkm program 
     required.add_option( "-g", "--fasta_file", dest="fasta_file", action="store", help="Genome sequence file in fasta format")
     required.add_option( "-b", "--bam_file", dest="bam_file", action="store", help="BAM file for storing sequence read alignment")
     required.add_option( "-D", "--result_dir", dest="result_dir", help="Result directory; storing output files.")
