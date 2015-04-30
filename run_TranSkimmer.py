@@ -116,8 +116,12 @@ def main():
         advance_options = "%s -nss" % advance_options
 
     #print advance_options
+
+    ## running the core transcript_skimmer engine 
     gtf_db = run_trsk(gio_path_temp, options.bam_file, options.result_dir, advance_options)
-    print gtf_db 
+    
+    
+    #gtf_db 
     
     """
     #TODO clean the genome annotation based on the transcript model
@@ -135,7 +139,6 @@ def main():
 def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes.gff", tmp_reg_file="tmp_trsk_regions.bed"):
     """
     run TransriptSkimmer for provided genome
-
     """
 
     ## indexing the in bam file 
@@ -172,7 +175,12 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes
     try:
         os.chdir(res_path) 
         process = subprocess.Popen(cli_trsk, shell=True) 
-        process.wait()
+        returncode = process.wait()
+        
+        if returncode !=0:
+            raise Exception, "Exit status return code = %i" % returncode
+        sys.stdout.write("transcript_skimmer run finished\n")
+
     except Exception, e:
         print 'Error running TranscriptSkimmer.\n%s' %  str( e )
         sys.exit(-1)
