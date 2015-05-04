@@ -13,9 +13,9 @@ import numpy
 import pysam 
 import shutil
 import subprocess
-import collections
 from Bio import SeqIO 
 from utils import GFFParser, helper 
+from collections import defaultdict
 
 from optparse import OptionParser, OptionGroup
 
@@ -120,13 +120,12 @@ def main():
     ## running the core transcript_skimmer engine 
     gtf_db = run_trsk(gio_path_temp, options.bam_file, options.result_dir, advance_options)
     
-    
-    #gtf_db 
+    outfilename = os.path.join(options.result_dir, options.gff_file) 
+    ## check the consistency of splice sites 
+    splice_site_check(options.result_dir, gtf_db, options.min_orf_len, options.fasta_file, outfilename)
     
     """
     #TODO clean the genome annotation based on the transcript model
-
-    check the consistency of splice sites 
 
     read coverage to the promoter directions
 
@@ -134,6 +133,147 @@ def main():
     """
 
     shutil.rmtree(gio_path_temp)
+
+
+def splice_site_check(gff_name, min_orf_length, fafile, outFile):
+    """
+    checking the consistency of splice site on predicted transcript models
+    """
+    
+    gff_content = GFFParser.Parse(gff_name) ## getting the transcript predictions
+    spliced_cand = 0
+    sing_exon_gen = 0
+    transcripts_region = defaultdict(list)
+    for gene_recd in gff_content: ## screening the spliced transcripts
+        spliced_transcript = defaultdict(list)
+        for idx, sub_rec in enumerate(gene_recd['transcripts']):
+            try:
+                exon_cnt = len(gene_recd['exons'][idx])
+            except:
+                continue
+
+            if exon_cnt > 1: ## skipping the single-exon transcripts 
+                orf_length = 0 
+                for idk, ex in enumerate(gene_recd['exons'][idx]):
+                    orf_length += ex[1]-(ex[0]-1)
+
+                    if idk == 0:
+                        spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])].append((None, ex[1]))
+                    elif exon_cnt-1 == idk:
+                        spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])].append((ex[0], None))
+                    else:
+                        spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])].append((ex[0], ex[1]))
+
+                if orf_length <= min_orf_length: ## min orf length for the transcripts 
+                    del spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])] ## clearing that transcript details
+                    continue
+                    
+                spliced_cand +=1
+            else:
+                sing_exon_gen +=1 
+        
+        if spliced_transcript: 
+            transcripts_region[gene_recd['chr']].append(spliced_transcript)
+
+    sys.stdout.write("...considering %d spliced transcripts\n" % spliced_cand)
+    sys.stdout.write("discarding transcripts...\n\t%d transcripts with single exon\n" % sing_exon_gen)
+    ## got the best transcript to be considerd, now starting the consensus seq check
+    genemodels = splice_site_consensus(fafile, transcripts_region)
+    write_gene_models_file(gff_content, genemodels, outFile)
+
+
+def write_gene_models_file(gff_cont, gene_models, outFileName):
+    """
+    writing the filtered gene models to the result file
+    """
+    sys.stdout.write("writing filtered gene models to %s ...\n" % outFileName)
+    true_genes = 0 
+    true_transcripts = 0 
+    out_fh = open(outFileName, "w")
+    for recd in gff_cont:
+        trans_indices = [] 
+        for idx, sub_rec in enumerate(recd['transcripts']):
+            if (recd['chr'], recd['name'], sub_rec[0], recd['strand']) in gene_models:
+                trans_indices.append(idx)
+        if trans_indices:
+            true_genes += 1 
+            chr_name = recd['chr']
+            strand = recd['strand']
+            start = recd['start']
+            stop = recd['stop']
+            source = recd['source']
+            ID = recd['name']
+            Name = recd['gene_info']['Name']
+            Name = ID if Name != None else Name  
+            out_fh.write('%s\t%s\tgene\t%d\t%d\t.\t%s\t.\tID=%s;Name=%s\n' % (chr_name, source, start, stop, strand, ID, Name))
+            for idz, tid in enumerate(recd['transcripts']):
+                if idz in trans_indices:
+                    true_transcripts += 1 
+                    t_start = recd['exons'][idz][0][0]
+                    t_stop = recd['exons'][idz][-1][-1]
+                    t_type = recd['transcript_type'][idz] 
+                    out_fh.write('%s\t%s\t%s\t%d\t%d\t.\t%s\t.\tID=%s;Parent=%s\n' % (chr_name, source, t_type, t_start, t_stop, strand, tid[0], ID))
+                    for ex_cod in recd['utr5_exons'][idz]:
+                        out_fh.write('%s\t%s\tfive_prime_UTR\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0])) 
+                    for ex_cod in recd['cds_exons'][idz]:
+                        out_fh.write('%s\t%s\tCDS\t%d\t%d\t.\t%s\t%d\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, ex_cod[2], tid[0])) 
+                    for ex_cod in recd['utr3_exons'][idz]:
+                        out_fh.write('%s\t%s\tthree_prime_UTR\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0]))
+                    for ex_cod in recd['exons'][idz]:
+                        out_fh.write('%s\t%s\texon\t%d\t%d\t.\t%s\t.\tParent=%s\n' % (chr_name, source, ex_cod[0], ex_cod[1], strand, tid[0])) 
+    out_fh.close()
+    sys.stdout.write("...done\n")
+    sys.stdout.write("number of genes considered  %d\n" % true_genes)
+    sys.stdout.write("number of transcripts considered  %d" % true_transcripts)
+
+
+def splice_site_consensus(fas_file, splice_region):
+    """
+    splice site consensus check
+    """
+    sys.stdout.write("splice site sequence consensus check started...\n")
+    get_gene_models = defaultdict()
+    splice_site_con = 0 
+    fas_fh = helper.open_file(fas_file)
+    for fas_rec in SeqIO.parse(fas_fh, "fasta"):
+        if fas_rec.id in splice_region:
+            for details in splice_region[fas_rec.id]:
+                for genes, regions in details.items():
+                    acc_cons_cnt = 0 
+                    don_cons_cnt = 0 
+
+                    for region in regions:
+                        if genes[-1] == '+':
+                            if region[0]:## acceptor splice site 
+                                acc_seq = fas_rec.seq[int(region[0])-3:int(region[0])-1]
+                                if str(acc_seq).upper() == "AG":
+                                    acc_cons_cnt += 1 
+
+                            if region[1]:
+                                don_seq = fas_rec.seq[int(region[1]):int(region[1])+2]
+                                if str(don_seq).upper() == "GT":
+                                    don_cons_cnt +=1 
+
+                        elif genes[-1] == '-':
+                            if region[0]: ## donor splice site 
+                                don_seq = fas_rec.seq[int(region[0])-3:int(region[0])-1]
+                                don_seq = don_seq.reverse_complement()
+                                if str(don_seq).upper() == "GT":
+                                    don_cons_cnt +=1 
+                            
+                            if region[1]:
+                                acc_seq = fas_rec.seq[int(region[1]):int(region[1])+2]
+                                acc_seq = acc_seq.reverse_complement()
+                                if str(acc_seq).upper() == "AG":
+                                    acc_cons_cnt += 1 
+                    ## check for half of the consensus sites 
+                    if acc_cons_cnt > (len(regions)/2) and don_cons_cnt > (len(regions)/2):
+                        get_gene_models[(fas_rec.id, genes[0], genes[1], genes[2])] = 1   
+                    else:
+                        splice_site_con +=1 
+    fas_fh.close()
+    sys.stdout.write("...considering %d best transcripts\n" % len(get_gene_models))
+    sys.stdout.write("discarding transcripts...\n\t%d splice-site consensus sequence missing\n" % splice_site_con)
 
 
 def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes.gff", tmp_reg_file="tmp_trsk_regions.bed"):
@@ -185,7 +325,7 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes
         print 'Error running TranscriptSkimmer.\n%s' %  str( e )
         sys.exit(-1)
 
-    return "%s/%s" % (res_path, tmp_gff_file)
+    return os.path.join(res_path, tmp_gff_file)
 
 
 def make_gio(in_file_name, gio_path):
