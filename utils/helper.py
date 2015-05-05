@@ -6,31 +6,14 @@ Common utility functions
 import os 
 import re
 import sys 
-import gzip 
 import bz2
+import gzip 
 import numpy 
 
-def init_gene_DE():
-    """
-    Initializing the gene structure for DE
-    """
-    gene_det = [('id', 'f8'), 
-                    ('chr', 'S15'), 
-                    ('exons', numpy.dtype),
-                    ('gene_info', numpy.dtype),
-                    ('is_alt_spliced', 'f8'), 
-                    ('name', 'S25'),
-                    ('source', 'S25'),
-                    ('start', 'f8'),
-                    ('stop', 'f8'), 
-                    ('strand', 'S2'), 
-                    ('transcripts', numpy.dtype)]
-
-    return gene_det
 
 def init_gene():
     """
-    Initializing the gene structure for GP 
+    Initializing the gene structure 
     """
     gene_det = [('id', 'f8'), 
             ('anno_id', numpy.dtype), 
@@ -50,6 +33,7 @@ def init_gene():
             ('transcripts', numpy.dtype),
             ('transcript_type', numpy.dtype),
             ('transcript_info', numpy.dtype),
+            ('transcript_score', numpy.dtype),
             ('transcript_status', numpy.dtype),
             ('transcript_valid', numpy.dtype),
             ('exons', numpy.dtype),
@@ -372,6 +356,6 @@ def print_exon_line(tinfo, out_file):
                             '.',
                             'Parent=%s' % tid[0]]
 
-                print '\t'.join(out_print) # - exon line  
+                sys.stdout.write('\t'.join(out_print)+"\n") # - exon line  
 
 
