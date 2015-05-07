@@ -4,7 +4,7 @@ wrapper for transcriptskimmer
 
 requirements:
     biopython :- http://biopython.org 
-
+    gfftools  :- http://github.com/vipints/gfftools  
 """
 
 import os 
@@ -73,7 +73,7 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
-    #TODO genome preparation step 
+    ## genome preparation step 
     gio_path_temp = os.path.join(options.result_dir, "temp_gio")
     make_gio(options.fasta_file, gio_path_temp)
 
@@ -115,23 +115,14 @@ def main():
     elif options.strand_specific in ['F', 'f', 'False', 'false']:
         advance_options = "%s -nss" % advance_options
 
-    #print advance_options
-
     ## running the core transcript_skimmer engine 
     gtf_db = run_trsk(gio_path_temp, options.bam_file, options.result_dir, advance_options)
-    
+
+    ## check the consistency of splice sites and write the result to outfile 
     outfilename = os.path.join(options.result_dir, options.gff_file) 
-    ## check the consistency of splice sites 
     splice_site_check(options.result_dir, gtf_db, options.min_orf_len, options.fasta_file, outfilename)
     
-    """
-    #TODO clean the genome annotation based on the transcript model
-
-    read coverage to the promoter directions
-
-    clean the region file based on the new gff file 
-    """
-
+    ## cleanup to the genome files 
     shutil.rmtree(gio_path_temp)
 
 
