@@ -24,7 +24,7 @@ def main():
     main inputs to TranscriptSkimmer
     """
 
-    #TODO options to the trkm program 
+    #TODO options to the trsk program 
     parser = OptionParser(usage='usage: %prog [options] arguments')
 
     required = OptionGroup(parser, 'Required')
@@ -77,8 +77,8 @@ def main():
     gio_path_temp = os.path.join(options.result_dir, "temp_gio")
     make_gio(options.fasta_file, gio_path_temp)
 
-    #options="-maxel %d -ss -reglen 0.66 -maxic %d -minic 20 -maxin %d -mm 2 -exm 3 -indt 150 -exd 20 -tf 0.5 -inscf 3 -excut 3 -toff 100 -el 15" % (max_exon_length, max_intergenic_region, max_intron_length)
     #TODO run the program 
+    #options="-maxel %d -ss -reglen 0.66 -maxic %d -minic 20 -maxin %d -mm 2 -exm 3 -indt 150 -exd 20 -tf 0.5 -inscf 3 -excut 3 -toff 100 -el 15" % (max_exon_length, max_intergenic_region, max_intron_length)
     advance_options = "-maxin %d \
         -mm %d \
         -el %d \
@@ -271,37 +271,35 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes
     """
     run TransriptSkimmer for provided genome
     """
-
-    ## indexing the in bam file 
-    if not os.path.exists(bam_file + ".bai"):
-        ## TranscriptSkimmer need the bam file sorted by coordinates 
-            
-        print "bam file index command throw errors! Looking through the bam file"
+    try:
+        subprocess.call(["infer_genes"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except:
+        exit("Please make sure that the `infer_genes` binary is in your $PATH")
+    
+    if not os.path.exists(bam_file + ".bai"): ## check for the index 
         file_prefix, ext = os.path.splitext(bam_file)
         sorted_bam = "%s_sortbyCoord" % file_prefix
 
-        print "trying to sort based by the coordinates with output prefix as: %s" % sorted_bam
+        sys.stdout.wrtite("trying to sort by the coordinates with output prefix as: %s\n" % sorted_bam)
         if not os.path.isfile("%s.bam" % sorted_bam):
-            print 'sorting...'
             pysam.sort(bam_file, sorted_bam)
             
         sorted_bam = "%s.bam" % sorted_bam
-        print "now creating the index for %s " % sorted_bam
+        sys.stdout.wrtite("indexing %s\n" % sorted_bam)
         if not os.path.exists(sorted_bam + ".bai"):
-            print 'indexing...'
             pysam.index(sorted_bam) 
 
         bam_file = sorted_bam 
 
-    print "bam file using is %s" % bam_file
+    sys.stdout.wrtite("bam file using is %s" % bam_file)
 
     gio_file = "%s/genome.config"  % gio_file 
     if not os.path.isfile("%s" % gio_file):
-        print "error: failed to fetch genome index object file from %s" % gio_file
+        sys.stdout.wrtite("error: failed to fetch genome index object file from %s\n" % gio_file ) 
         sys.exit(-1)
         
     cli_trsk = "infer_genes -gio %s -bam %s -gff %s -reg %s %s" % (gio_file, bam_file, tmp_gff_file, tmp_reg_file, options)  
-    sys.stdout.write('\trun TranscriptSkimmer as: %s \n' % cli_trsk)
+    sys.stdout.write('\trun TranscriptSkimmer as: %s\n' % cli_trsk)
     
     try:
         os.chdir(res_path) 
@@ -310,10 +308,10 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes
         
         if returncode !=0:
             raise Exception, "Exit status return code = %i" % returncode
-        sys.stdout.write("transcript_skimmer run finished\n")
+        sys.stdout.write("TranscriptSkimmer run finished\n")
 
     except Exception, e:
-        print 'Error running TranscriptSkimmer.\n%s' %  str( e )
+        sys.stdout.write("Error running TranscriptSkimmer.\n%s" %  str( e ))
         sys.exit(-1)
 
     return os.path.join(res_path, tmp_gff_file)
@@ -330,7 +328,6 @@ def make_gio(in_file_name, gio_path):
 	@args gio_path: is the directory to which the genome information object will be written to
     @type gio_path: dir 
 	"""
-
 	try:
 		f_in = file(in_file_name, "r")
 	except Exception, msg:
@@ -357,7 +354,6 @@ def make_gio(in_file_name, gio_path):
 	num_bases = 0
 	
 	for line in f_in:
-
 		if line.isspace():
 			print "warning: wrong format. ignoring empty line in file '" + in_file_name + "'"
 			continue
