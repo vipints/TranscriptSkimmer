@@ -162,7 +162,13 @@ def splice_site_check(gff_name, min_orf_length, fafile, outFile):
                 spliced_cand +=1
             else:
                 sing_exon_gen +=1 
-        
+                single_exon_len = 0 
+                for idk, ex in enumerate(gene_recd['exons'][idx]):
+                    single_exon_len = ex[1]-(ex[0]-1)
+
+                if single_exon_len > 900:
+                    spliced_transcript[(gene_recd['name'], sub_rec[0], gene_recd['strand'])].append((ex[0], ex[1]))
+
         if spliced_transcript: 
             transcripts_region[gene_recd['chr']].append(spliced_transcript)
 
