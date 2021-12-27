@@ -8,6 +8,7 @@
 #include "genome.h"
 #include "gene.h"
 #include "gene_tools.h"
+#include "splice_labels_from_RNA_seq.h"
 //extern void save_score_pos(char* path_prefix, char** score_names, float** scores, int num_scores, int* pos, int num_pos);
 
 bool GeneTools::check_consensus(int pos, const char* seq, int len, vector<string*> motifs)
