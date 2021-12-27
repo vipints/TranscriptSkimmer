@@ -324,6 +324,97 @@ def run_trsk(gio_file, bam_file, res_path, options, tmp_gff_file="tmp_trsk_genes
 
 
 def make_gio(in_file_name, gio_path):
+    """
+    make_gio builds a genome information object for an input fasta file.
+    takes 2 arguments:
+    @args fasta_file: is the input file in fasta format
+    @type fasta_file: str
+    @args gio_path: genome information object will be written to
+    @type gio_path: dir
+    """
+
+    try:
+         f_in = open(in_file_name, "r")
+    except Exception as msg:
+         print(msg)
+         exit("cannot open input file %s" % in_file_name)
+
+    write_dna = 1 
+    flat_path = os.path.join(gio_path, "genome")
+
+    try:
+        if os.path.exists(flat_path):
+            print("directory %s exists already." % flat_path)
+        else:
+            os.makedirs(flat_path)
+    except Exception as msg:
+        print(msg)
+        exit("cannot create path %s" % flat_path)
+
+    f_out = None
+    f_out_dna = None
+    contig_list = []
+    num_bases = 0
+
+    for line in f_in:
+        if line.isspace():
+            print("warning: ignoring empty line in file %s" % in_file_name)
+            continue 
+        if line[0].isspace():
+            exit("wrong format: leading white space in file %s" % in_file_name)
+
+        if line.startswith(">"):
+            if f_out != None:
+                f_out.close()
+            if f_out_dna != None:
+                f_out_dna.close()
+
+            contig_list.append(line[1:-1].split()[0])
+            out_name = os.path.join(flat_path, contig_list[-1] + ".flat")
+            out_dna_name = os.path.join(flat_path, contig_list[-1] + ".dna")
+            
+            try:
+                f_out = open(out_name, "w")
+                if write_dna==1:
+                    f_out_dna = open(out_dna_name, "w")
+                    f_out_dna.write(line)
+            except Exception as msg:
+                print(msg) 
+                exit("cannot open file %s" % out_name)
+        else:
+            try:
+                f_out.write(line[0:-1].lower())
+                if write_dna==1:
+                    f_out_dna.write(line.lower())
+            except Exception as msg: 
+                if f_out != None:
+                    print(msg)
+                    exit("cannot write to file %s" % out_name)
+                else:
+                    exit("improper input format. No header in first line")
+
+            num_bases += len(line)-1
+    f_out.close()
+
+    try:
+        print("creating file %s" % os.path.join(gio_path, "genome.config"))
+        f_conf = open(os.path.join(gio_path, "genome.config"), "w")
+        f_conf.write("BASEDIR " +  os.path.abspath(gio_path) +"\n\n")
+        f_conf.write("CONTIGS " +  str(len(contig_list)) +"\n")
+        for c in contig_list:
+            f_conf.write(c + "\tgenome/" + c + ".flat\tgenome/" + c + ".dna\n")
+        f_conf.write("\nALPHABET acgt\n\n")
+        f_conf.write("ESTFILES 0\n\n")
+        f_conf.write("CDNAFILES 0\n\n")
+        f_conf.write("ANNOTATIONFILES 0\n")
+        f_conf.close()
+    except Exception as msg:
+        print(msg) 
+        exit("cannot create file %s" % os.path.join(gio_path, "genome.config"))
+
+
+
+def make_gio(in_file_name, gio_path):
 	"""
     make_gio builds a genome information object for an input fasta file. 
 
